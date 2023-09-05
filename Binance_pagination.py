@@ -66,57 +66,60 @@ def main():
     interval = st.selectbox("Select Interval", ["1m", "5m", "15m", "30m", "45m", "1h", "4h", "1d"], index=6)
     start_date = st.date_input("Select start date", date(2017, 1, 1))
 
-    intervals_minutes = {
-        "1m": 1, "5m": 5, "15m": 15, "30m": 30, "45m": 45, "1h": 60, "4h": 240, "1d": 1440
-    }
+    # Only when the "Start" button is clicked, will the data fetching start
+    if st.button("Start"):
 
-    elapsed_mins = (datetime.now() - datetime.combine(start_date, datetime.min.time())).total_seconds() / 60
-    total_required_points = elapsed_mins / intervals_minutes[interval]
-    total_pages = int(total_required_points / 1000) + 1
+        intervals_minutes = {
+            "1m": 1, "5m": 5, "15m": 15, "30m": 30, "45m": 45, "1h": 60, "4h": 240, "1d": 1440
+        }
 
-    data_frames = []
-    start_timestamp = int(start_date.strftime("%s")) * 1000
+        elapsed_mins = (datetime.now() - datetime.combine(start_date, datetime.min.time())).total_seconds() / 60
+        total_required_points = elapsed_mins / intervals_minutes[interval]
+        total_pages = int(total_required_points / 1000) + 1
 
-    progress_bar = st.progress(0)
-    time_remaining_placeholder = st.empty()
-    total_request_time = 0
+        data_frames = []
+        start_timestamp = int(start_date.strftime("%s")) * 1000
 
-    with st.spinner("Fetching Data..."):
-        for i in range(total_pages):
-            page_start_time = time.time()
+        progress_bar = st.progress(0)
+        time_remaining_placeholder = st.empty()
+        total_request_time = 0
 
-            df_page = fetch_data(symbol, interval, start_time=start_timestamp)
+        with st.spinner("Fetching Data..."):
+            for i in range(total_pages):
+                page_start_time = time.time()
 
-            request_duration = time.time() - page_start_time
-            total_request_time += request_duration
-            average_request_time = total_request_time / (i + 1)
-            estimated_time_remaining = average_request_time * (total_pages - i - 1)
+                df_page = fetch_data(symbol, interval, start_time=start_timestamp)
 
-            time_remaining_placeholder.text(f"Estimated time remaining: {estimated_time_remaining:.2f} seconds.")
+                request_duration = time.time() - page_start_time
+                total_request_time += request_duration
+                average_request_time = total_request_time / (i + 1)
+                estimated_time_remaining = average_request_time * (total_pages - i - 1)
 
-            if df_page.empty:
-                break
+                time_remaining_placeholder.text(f"Estimated time remaining: {estimated_time_remaining:.2f} seconds.")
 
-            start_timestamp = int(df_page.iloc[-1]['open_time'].timestamp() * 1000) + 1
-            data_frames.append(df_page)
+                if df_page.empty:
+                    break
 
-            progress = int((i + 1) / total_pages * 100)
-            progress_bar.progress(progress)
+                start_timestamp = int(df_page.iloc[-1]['open_time'].timestamp() * 1000) + 1
+                data_frames.append(df_page)
 
-            time.sleep(0.05)
+                progress = int((i + 1) / total_pages * 100)
+                progress_bar.progress(progress)
 
-    time_taken = time.time() - page_start_time
-    df = pd.concat(data_frames, ignore_index=True)
-    datasets_received = df.shape[0]
+                time.sleep(0.05)
 
-    st.write(f"Data fetched in {time_taken:.2f} seconds.")
-    st.write(f"Received {datasets_received} data sets.")
-    st.dataframe(df.tail(100000))
+        time_taken = time.time() - page_start_time
+        df = pd.concat(data_frames, ignore_index=True)
+        datasets_received = df.shape[0]
 
-    csv = df.to_csv(index=False)
-    b64 = base64.b64encode(csv.encode()).decode()
-    href = f'<a href="data:file/csv;base64,{b64}" download="binance_data.csv">Download CSV File</a>'
-    st.markdown(href, unsafe_allow_html=True)
+        st.write(f"Data fetched in {time_taken:.2f} seconds.")
+        st.write(f"Received {datasets_received} data sets.")
+        st.dataframe(df.tail(100000))
+
+        csv = df.to_csv(index=False)
+        b64 = base64.b64encode(csv.encode()).decode()
+        href = f'<a href="data:file/csv;base64,{b64}" download="binance_data.csv">Download CSV File</a>'
+        st.markdown(href, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
